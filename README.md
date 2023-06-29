@@ -8,7 +8,8 @@ Requires Python 3.10. Lower versions have not been tested but could work. In cas
 
 1. Put all the files in this repo inside a folder
 2. Ensure that `kcc_c2e.exe` is in PATH. See `kcc_conversion.py` for information on how to set that up.
-3. Run `mangadex_retriever.py` and follow the CLI instructions.
+3. Review `settings.py` and change as needed. Note that not all settings are implemented.
+4. Run `mangadex_retriever.py` and follow the CLI instructions.
 
 The script will attempt to push to an ebook management software called Calibre. The script also defaults to converting for a Kobo Libra 2. As of now, these things can't be changed but with enough knowdlegde you should be able to find the lines you need to change to adapt this script for your needs.
 
