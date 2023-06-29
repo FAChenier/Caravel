@@ -53,7 +53,7 @@
 # # ================================================================================================================================
 # # This section is to find the location of what we want to convert. This could be its own function or a GUI or something like that.
 # # ================================================================================================================================
-#     workdir = "C:\\Users\\capit\\OneDrive\\Documents\\GitHub Projects\\Caravel\\books" # TODO: Make this an input
+#     workdir = no
 #     # List the book series so that we can go down to the volume list:
 #     # item_list = os.listdir(workdir)
 #     # Ask user which book to series to access:
