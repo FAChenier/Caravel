@@ -1,8 +1,9 @@
 # This script consolidates KCC tasks for converting comic files to an EPUB files
 
 import os
+from settings import ereader_profile
 
-def img_dir_to_epub(series_path: str, volume_id: int, verbose = True, delete = True, tablet_profile = "KoL") -> dict:
+def img_dir_to_epub(series_path: str, volume_id: int, verbose = True, delete = True, tablet_profile = ereader_profile) -> dict:
     """Executes a KCC (Kindle Comic Converter) command to convert a folder of images to an EPUB file.
 
     Note that a folder cannot contain illegal characters. This function assumes that the folder has a clean name. ie, for "Blame! Vol. 1", the folder name should be "Blame Vol. 1"
