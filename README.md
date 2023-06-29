@@ -6,9 +6,9 @@ Caravel is a python script/program that allows you to download a series of manga
 
 Requires Python 3.10. Lower versions have not been tested but could work. In case you don't know, install Python through the Microsoft Store on Windows. Untested on any other platforms.
 
-Run `mangadex_retriever.py` and follow the CLI instructions.
-
-Ensure that `kcc_c2e.exe` is in PATH. See `kcc_conversion.py` for information on how to set that up.
+1. Put all the files in this repo inside a folder
+2. Ensure that `kcc_c2e.exe` is in PATH. See `kcc_conversion.py` for information on how to set that up.
+3. Run `mangadex_retriever.py` and follow the CLI instructions.
 
 The script will attempt to push to an ebook management software called Calibre. The script also defaults to converting for a Kobo Libra 2. As of now, these things can't be changed but with enough knowdlegde you should be able to find the lines you need to change to adapt this script for your needs.
 
