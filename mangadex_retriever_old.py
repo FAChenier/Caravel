@@ -32,8 +32,7 @@ import requests
 from pprint import pprint
 import os
 import time
-import concurrent.futures
-from misc_utils import printProgressBar, download_chapter_image
+from misc_utils import printProgressBar
 from kcc_conversion import img_dir_to_epub as kcc_convert
 from push_to_calibre import push_to_calibre as calibre_push
 
@@ -47,7 +46,6 @@ title_lookup = requests.get(
 
 title_list = [manga['attributes']['title']['en'].strip() for manga in title_lookup.json()["data"]]
 id_list = [manga['id'] for manga in title_lookup.json()["data"]]
-
 try:
     al_link_list = ["https://anilist.co/manga/" + manga['attributes']['links']['al'] for manga in title_lookup.json()["data"]]
 except:
@@ -172,118 +170,50 @@ for chapter in chapter_request.json()["data"]:
         pseudo_file_structure[clean_title][text_volume][work_chapter] = chapter['id']
 # We should now have a map of where things belong
 
-# If everything ended up in stranded, that means the manga doesn't use volumes.
-# Instead of working with volumes, we will work with chapter ranges. For example, "Ch.20-30.epub" is a book containing chapters 20 to 30.
-# Check if everything is in stranded:
-if len(pseudo_file_structure[clean_title]['stranded']) == len(chapter_id_list):
-    volume_list = []
-    # Everything is in stranded, we can work with chapter ranges:
-    print('Manga does not use volumes, using chapter ranges instead')
-    # Print a list of all chapters and ask user which ranges to download:
-    print('\nChapters found:')
-    x = 0
-    for chapter in pseudo_file_structure[clean_title]['stranded']:
-        print(str(x) + ':\t' + chapter)
-        x += 1
-    # Now, ask user which ranges to download
-    ranges_to_download = input('Enter the ranges to download, separated by commas (ie: "11-20" or "11-20,21-30"): ')
-    if ranges_to_download == 'debug':
-        print('Entering Debug. Printing useful data...')
-        pprint(pseudo_file_structure)
-        print('Exiting Debug')
-        ranges_to_download = input('Enter the ranges to download, separated by commas (cannot enter DEBUG again): ')
-    range_list = ranges_to_download.replace(' ', '').split(',')
-    # Now we have ranges, we can build "volumes" in the pseudo_file_structure using the requested ranges. First range is a sort of volume 1, so inside folder "0001".
-    # Start by remaking pseudo_file_structure bu only for the requested chapters. All the others will be put in stranded again:
-    pseudo_file_structure = {clean_title: {
-        'stranded': {},
-    }}
-    # Now we have a clean pseudo_file_structure, we can start building the ranges
-    x = 0
-    for chap_range in range_list:
-        x += 1
-        volume_list.append(str(x).zfill(4))
-        meta_title = meta_title + ' - Ch.' + chap_range
-        # Split the range into start and end
-        start = int(chap_range.split('-')[0])
-        end = int(chap_range.split('-')[1])
-        # Now we have a start and end, we can build the range
-        for chapter in chapter_request.json()["data"]:
-            try:
-                work_chapter = chapter['attributes']['chapter']
-            except:
-                work_chapter = -1
+# Now, ask user which volumes to download
+print('\nVolumes found:')
+x = 0
+for volume in pseudo_file_structure[clean_title]:
+    if volume != 'stranded':
+        print(str(x) + ':\t' + volume)
+    else:
+        print(str(x) + ':\tStranded Volume')
+    x += 1
 
-            if work_chapter >= start and work_chapter <= end:
-                # Chapter is in range, place it in the pseudo_file_structure
-                pseudo_file_structure[clean_title][x.zfill(4)][work_chapter] = chapter['id']
-            else:
-                # Chapter is not in range, place it in stranded
-                pseudo_file_structure[clean_title]['stranded'][work_chapter] = chapter['id']
-        # Now we have a pseudo_file_structure that is built using chapter ranges. We can continue as if it was volumes
-        # Salvage the cover from the initial API request, which returned the main cover
-        for relationship in relationships_list:
-            # Search for the dict with pair "type": "author" to make another request to Mangadex for their name
-            if relationship['type'] == 'cover':
-                cover_id = relationship['id']
+volumes_to_download = input('Enter the volumes to download, separated by commas: ')
+if volumes_to_download == 'debug':
+    print('Entering Debug. Printing useful data...')
+    pprint(pseudo_file_structure)
+    print('Exiting Debug')
+    volumes_to_download = input('Enter the volumes to download, separated by commas (cannot enter DEBUG again): ')
+volume_list = volumes_to_download.replace(' ', '').split(',')
 
-                cover_request = requests.get(
-                    f"{base_url}/cover/{cover_id}"
-                    )
-                # Now we have the cover, download it and save it
-                cover_filename = cover_request.json()['data']['attributes']['fileName']
-                cover_url = 'https://uploads.mangadex.org/covers/' + mdid + '/' + cover_filename + '.512.jpg'
-                cover_file_request = requests.get(cover_url)
-                with open(os.path.join(workdir, '0001.jpg'), 'wb') as f:
-                    f.write(cover_file_request.content)
-        # Now we have a cover, we can continue as if it was volumes and download the chapters based on Mangadex IDs
+# Before continuing, go straight to the covers:
+cover_request = requests.get(
+        f"{base_url}/cover",
+        params={"manga[]": [mdid], "limit": 100} # Cant order by volume :(
+        )
 
-else:
-    # We have volumes, ask user which volumes to download
-    # Now, ask user which volumes to download
-    print('\nVolumes found:')
-    x = 0
-    for volume in pseudo_file_structure[clean_title]:
-        if volume != 'stranded':
-            print(str(x) + ':\t' + volume + ' (' + str(len(pseudo_file_structure[clean_title][volume])) + ' chapters)')
-        else:
-            print(str(x) + ':\tStranded Volume')
-        x += 1
-
-    volumes_to_download = input('Enter the volumes to download, separated by commas: ')
-    if volumes_to_download == 'debug':
-        print('Entering Debug. Printing useful data...')
-        pprint(pseudo_file_structure)
-        print('Exiting Debug')
-        volumes_to_download = input('Enter the volumes to download, separated by commas (cannot enter DEBUG again): ')
-    volume_list = volumes_to_download.replace(' ', '').split(',')
-
-    # Before continuing, go straight to the covers:
-    cover_request = requests.get(
-            f"{base_url}/cover",
-            params={"manga[]": [mdid], "limit": 100} # Cant order by volume :(
-            )
-
-    # Get cover from Mangadex if it's not already there:
-    for volume in volume_list: # Repetitive loop, but avoids doing too many API calls
-        if not os.path.exists(os.path.join(workdir, volume+'.jpg')): # All covers are jpg
-            # Get the cover ID from the cover request for this volume if it's available
-            cover_id = None
-            for cover in cover_request.json()['data']:
-                if cover['attributes']['volume'] == str(int(volume)):
-                    cover_id = cover['id']
-                    break
-            if cover_id != None:
-                # Cover ID found, request the cover
-                cover_image_request = requests.get(
-                    f"{base_url}/cover/{cover_id}"
-                    )
-                # Now we have the cover, download it and save it
-                cover_filename = cover_image_request.json()['data']['attributes']['fileName']
-                cover_url = 'https://uploads.mangadex.org/covers/' + mdid + '/' + cover_filename + '.512.jpg'
-                cover_file_request = requests.get(cover_url)
-                with open(os.path.join(workdir, volume.zfill(4)+'.jpg'), 'wb') as f:
-                    f.write(cover_file_request.content)
+# Get cover from Mangadex if it's not already there:
+for volume in volume_list: # Repetitive loop, but avoids doing too many API calls
+    if not os.path.exists(os.path.join(workdir, volume+'.jpg')): # All covers are jpg
+        # Get the cover ID from the cover request for this volume if it's available
+        cover_id = None
+        for cover in cover_request.json()['data']:
+            if cover['attributes']['volume'] == str(int(volume)):
+                cover_id = cover['id']
+                break
+        if cover_id != None:
+            # Cover ID found, request the cover
+            cover_image_request = requests.get(
+                f"{base_url}/cover/{cover_id}"
+                )
+            # Now we have the cover, download it and save it
+            cover_filename = cover_image_request.json()['data']['attributes']['fileName']
+            cover_url = 'https://uploads.mangadex.org/covers/' + mdid + '/' + cover_filename + '.512.jpg'
+            cover_file_request = requests.get(cover_url)
+            with open(os.path.join(workdir, volume.zfill(4)+'.jpg'), 'wb') as f:
+                f.write(cover_file_request.content)
 
 # Now we have a list of volumes to download, we can go through the pseudo_file_structure and download the chapters based on Mangadex IDs
 vols = 0
@@ -305,6 +235,7 @@ for volume in volume_list:
     chaps = 0
     for chapter in pseudo_file_structure[clean_title][volume]:
         chaps += 1
+        time_start = time.time()
         print('Starting Chapter ' + str(chaps) + " of " + str(len(pseudo_file_structure[clean_title][volume])))
         ch_path = os.path.join(workdir, volume, chapter)
         if not os.path.exists(os.path.join(workdir, volume, chapter)):
@@ -319,7 +250,6 @@ for volume in volume_list:
 
         # Now we have the image data, we can get the images
         im = 0
-        #pprint(chapter_request.json())
         total_images = len(chapter_request.json()['chapter']['data'])
         baseUrl = chapter_request.json()['baseUrl']
         chapter_hash = chapter_request.json()['chapter']['hash']
@@ -328,34 +258,31 @@ for volume in volume_list:
             '========================================',
             'Downloading ' + str(total_images) + ' Images', sep='\n'
             )
-        time_start = time.perf_counter()
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            for image in chapter_request.json()['chapter']['data']:
-                printProgressBar(im, total_images, prefix = 'Progress:', suffix = 'Complete', length = 50)
-                im+=1
-                # Check if the image already exists. If so, skip it. If first image, ask if we should overwrite (TODO)
-                if os.path.exists(os.path.join(workdir, volume, chapter, str(im).zfill(5))+".png") or os.path.exists(os.path.join(workdir, volume, chapter, str(im).zfill(5))+".jpg"):
-                    # Image already exists, skip it
-                    continue
-                else:
-                    image_path = os.path.join(workdir, volume, chapter, str(im).zfill(5))
-                    # Build the URL to the image, download it, then save it.
-                    # im_url = baseUrl + '/data/' + chapter_hash + '/' + image                        # Build the URL to the image
-                    # image_request = requests.get(im_url)                                       # Get the downloaded image extension
-                    # with open(os.path.join(workdir, volume, chapter, str(im).zfill(5))+'.png', 'wb') as f: # Save the image
-                    #     f.write(image_request.content)
-                    executor.submit(download_chapter_image, baseUrl, chapter_hash, image, image_path)
 
-                    # TODO: Mangadex expects a PUSH to report if the provided link was good or not. Do when possible
+        for image in chapter_request.json()['chapter']['data']:
+            printProgressBar(im, total_images, prefix = 'Progress:', suffix = 'Complete', length = 50)
+            im+=1
+            # Check if the image already exists. If so, skip it. If first image, ask if we should overwrite (TODO)
+            if os.path.exists(os.path.join(workdir, volume, chapter, str(im).zfill(5))+".png") or os.path.exists(os.path.join(workdir, volume, chapter, str(im).zfill(5))+".jpg"):
+                # Image already exists, skip it
+                continue
+            else:
+                # Build the URL to the image, download it, then save it.
+                im_url = baseUrl + '/data/' + chapter_hash + '/' + image                        # Build the URL to the image
+                image_request = requests.get(im_url)                                            # Request the image
+                image_extension = image.split('.')[-1]                                          # Get the downloaded image extension
+                with open(os.path.join(workdir, volume, chapter, str(im).zfill(5))+'.png', 'wb') as f: # Save the image
+                    f.write(image_request.content)
 
-                    # Last, rename the image to something simple to avoid breaking the filesystem, use 00001, 00002, etc should be enough
-                    #os.rename(os.path.join(workdir, volume, chapter, image), os.path.join(workdir, volume, chapter, str(im).zfill(5) + '.' + image_extension))
+                # TODO: Mangadex expects a PUSH to report if the provided link was good or not. Do when possible
 
+                # Last, rename the image to something simple to avoid breaking the filesystem, use 00001, 00002, etc should be enough
+                #os.rename(os.path.join(workdir, volume, chapter, image), os.path.join(workdir, volume, chapter, str(im).zfill(5) + '.' + image_extension))
 
         # All images downloaded, go to next chapter
         printProgressBar(total_images, total_images, prefix = 'Progress:', suffix = 'Complete', length = 50) # Ducktape fix to make sure the progress bar is full lol
-        time_end = time.perf_counter()
-        print('Time to download: ' + str(round(time_end - time_start, 2)) + ' seconds')
+        time_end = time.time()
+        print("Chapter took " + str(round(time_end - time_start, 2)) + " seconds to download")
         print(
             'Finished downloading Chapter ' + str(chaps),
             '========================================', sep='\n'

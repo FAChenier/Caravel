@@ -1,5 +1,7 @@
 # Miscellaneous functions for the project
 
+import requests
+
 # From https://stackoverflow.com/a/34325723
 def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
     """
@@ -21,5 +23,14 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     bar = fill * filledLength + '-' * (length - filledLength)
     print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
     # Print New Line on Complete
-    if iteration == total: 
+    if iteration == total:
         print()
+
+# Function for downloading individual images for chapters:
+def download_chapter_image(baseUrl, chapter_hash, image, image_path):
+    # Build the URL to the image, download it, then save it.
+    im_url = baseUrl + '/data/' + chapter_hash + '/' + image                        # Build the URL to the image
+    image_request = requests.get(im_url)                                         # Get the downloaded image extension
+    with open(image_path+'.png', 'wb') as f: # Save the image
+        f.write(image_request.content)
+
