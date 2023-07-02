@@ -265,20 +265,15 @@ for volume in volume_list:
         chapter_id = cr['pseudo_file_structure'][us['clean_title']][volume][chapter]
 
         # Now we can download the images. First, request Mangadex for image data
-        #time.sleep(2)
-        print(chapter_id)
-        print(f"{baseUrl}/at-home/server/{chapter_id}")
         chapter_request = requests.get(
             f"{baseUrl}/at-home/server/{chapter_id}"
             )
-
-        pprint(chapter_request.json())
 
         # Now we have the image data, we can get the images
         im = 0
         #pprint(chapter_request.json())
         total_images = len(chapter_request.json()['chapter']['data'])
-        baseUrl = chapter_request.json()['baseUrl']
+        chapter_baseUrl = chapter_request.json()['baseUrl']
         chapter_hash = chapter_request.json()['chapter']['hash']
 
         print(
@@ -295,12 +290,13 @@ for volume in volume_list:
                 else:
                     image_path = os.path.join(workdir, volume, chapter, str(im).zfill(5))
                     # Build the URL to the image, download it, then save it.
-                    # im_url = baseUrl + '/data/' + chapter_hash + '/' + image                        # Build the URL to the image
+                    # im_url = chapter_baseUrl + '/data/' + chapter_hash + '/' + image                        # Build the URL to the image
                     # image_request = requests.get(im_url)                                       # Get the downloaded image extension
                     # with open(os.path.join(workdir, volume, chapter, str(im).zfill(5))+'.png', 'wb') as f: # Save the image
                     #     f.write(image_request.content)
-                    executor.submit(download_chapter_image, baseUrl, chapter_hash, image, image_path)
-                    #download_chapter_image(baseUrl, chapter_hash, image, image_path)
+                    executor.submit(download_chapter_image, chapter_baseUrl, chapter_hash, image, image_path)
+                    time.sleep(0.2) # Sleep for 0.1 seconds to avoid getting rate limited
+                    #download_chapter_image(chapter_baseUrl, chapter_hash, image, image_path)
                 printProgressBar(im, total_images, prefix = 'Progress:', suffix = 'Complete', length = 50)
                 im+=1
 
@@ -318,8 +314,6 @@ for volume in volume_list:
             'Finished downloading Chapter ' + str(chaps),
             '========================================', sep='\n'
             )
-        if time_end - time_start < 1:
-            time.sleep(1) # Sleep for 1 second to avoid getting rate limited
 
     # All Chapters finished, convert it to epub before moving on to next volume
     print(
