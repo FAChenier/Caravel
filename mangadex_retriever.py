@@ -122,6 +122,8 @@ chapter_request = requests.get(
     f"{base_url}/manga/{mdid}/feed",
     params={"translatedLanguage[]": "en", "order[chapter]": "asc", "limit": 500}
     )
+# FIXME Find a way to exclude official publishers from the list as we cant download from them, but often there is a scanlator version available
+# TODO: An alternative to above is to allow the user to select which scanlator to use if a choice is available.
 # TODO: Add a way to detect if there are more than 500 chapters and do another request with an offset if it does
 
 # FIXME: We don't know if there are duplicate chapters! If so, we need to determine which to use. Likely going to be done based on scanlation group
@@ -331,8 +333,6 @@ for volume in volume_list:
         time_start = time.perf_counter()
         with concurrent.futures.ThreadPoolExecutor() as executor:
             for image in chapter_request.json()['chapter']['data']:
-                printProgressBar(im, total_images, prefix = 'Progress:', suffix = 'Complete', length = 50)
-                im+=1
                 # Check if the image already exists. If so, skip it. If first image, ask if we should overwrite (TODO)
                 if os.path.exists(os.path.join(workdir, volume, chapter, str(im).zfill(5))+".png") or os.path.exists(os.path.join(workdir, volume, chapter, str(im).zfill(5))+".jpg"):
                     # Image already exists, skip it
@@ -345,6 +345,8 @@ for volume in volume_list:
                     # with open(os.path.join(workdir, volume, chapter, str(im).zfill(5))+'.png', 'wb') as f: # Save the image
                     #     f.write(image_request.content)
                     executor.submit(download_chapter_image, baseUrl, chapter_hash, image, image_path)
+                printProgressBar(im, total_images, prefix = 'Progress:', suffix = 'Complete', length = 50)
+                im+=1
 
                     # TODO: Mangadex expects a PUSH to report if the provided link was good or not. Do when possible
 
@@ -360,6 +362,8 @@ for volume in volume_list:
             'Finished downloading Chapter ' + str(chaps),
             '========================================', sep='\n'
             )
+        if time_end - time_start < 1:
+            time.sleep(1) # Sleep for 1 second to avoid getting rate limited
 
     # All Chapters finished, convert it to epub before moving on to next volume
     print(
