@@ -46,16 +46,17 @@ title_lookup = mangadex_titles_request(user_search['lookup'])
 
 # ====================================================================================================
 
-title_list = title_lookup["titles_results"]
-id_list = title_lookup["ids_results"]
-md_link_list = title_lookup["mangadex_links"]
-al_link_list = title_lookup["anilist_links"]
-authors_list = title_lookup["contributors"]
+
 
 # TODO: Make this a loop so that it keeps asking until it has a valid result to use or user exits
 user_select = display_results(title_lookup)
 us = user_select # Shortcut for later
-
+id_select = int(us['response'])
+title_list = title_lookup["titles_results"][id_select-1]
+id_list = title_lookup["ids_results"][id_select-1]
+md_link_list = title_lookup["mangadex_links"][id_select-1]
+al_link_list = title_lookup["anilist_links"][id_select-1]
+authors_list = title_lookup["contributors"][id_select-1]
 # ====================================================================================================
 # We now have a title to work with. We need to get the ID of the manga on Mangadex to continue
 chapter_request = chapter_request_and_files(us['mdid'], us['clean_title'])
