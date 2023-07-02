@@ -33,7 +33,7 @@ from pprint import pprint
 import os
 import time
 import concurrent.futures
-from misc_utils import printProgressBar, download_chapter_image
+from misc_utils import printProgressBar, download_chapter_image, link
 from kcc_conversion import img_dir_to_epub as kcc_convert
 from push_to_calibre import push_to_calibre as calibre_push
 
@@ -47,6 +47,7 @@ title_lookup = requests.get(
 
 title_list = [manga['attributes']['title']['en'].strip() for manga in title_lookup.json()["data"]]
 id_list = [manga['id'] for manga in title_lookup.json()["data"]]
+md_link_list = ["https://mangadex.org/title/" + manga['id'] for manga in title_lookup.json()["data"]]
 
 try:
     al_link_list = ["https://anilist.co/manga/" + manga['attributes']['links']['al'] for manga in title_lookup.json()["data"]]
@@ -60,19 +61,21 @@ if len(title_list) > 1:
     i = 0
     for manga_title in title_list:
         # Print a useful list of results and ask which one is correct
-        print(str(i+1) + ":\t" + " (" + al_link_list[i] +  ")\t" + title_list[i])
+        # print(str(i+1) + ":\t" + " (" + al_link_list[i] +  ")\t" + title_list[i]) # Keep this, some people's CLI might not support links
+        #al_link_str = link(al_link_list[i], "(Anilist)") + "\t" if al_link_list[i] != 'No Anilist Link' else "" # Ignoring Anilist links for now
+        print(str(i+1) + ":\t" + link(md_link_list[i], title_list[i]))
         i += 1
     id_to_use = int(input('\nID of manga to use: ')) - 1
 elif len(title_list) == 0:
     # No results found
     print('No results found, exiting')
-    exit()
+    exit() # TODO in the future, make this just return to the title search
 else:
     # Ensure the unique result is correct
     print('Single result found:')
-    print(title_list[0] + " (" + al_link_list[0] + ")")
+    print("1:\t(" + al_link_list[0] + ")\t"+ title_list[0])
     make_sure = input('Is this the correct manga? (y/n): ')
-    if make_sure == 'y':
+    if make_sure == 'y' or make_sure == '1':
         id_to_use = 0
     else:
         exit()
@@ -250,7 +253,12 @@ else:
         if volume != 'stranded':
             print(str(x) + ':\t' + volume + ' (' + str(len(pseudo_file_structure[clean_title][volume])) + ' chapters)')
         else:
-            print(str(x) + ':\tStranded Volume')
+            stranded_chapters = len(pseudo_file_structure[clean_title][volume])
+            if stranded_chapters > 0:
+                print(str(x) + ':\tStranded Volume' + ' (' + str(stranded_chapters) + ' chapters)')
+            else:
+                # Don't even print it if there are no chapters in it
+                pass
         x += 1
 
     volumes_to_download = input('Enter the volumes to download, separated by commas: ')
