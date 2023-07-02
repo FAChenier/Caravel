@@ -125,6 +125,7 @@ chapter_request = requests.get(
 # FIXME Find a way to exclude official publishers from the list as we cant download from them, but often there is a scanlator version available
 # TODO: An alternative to above is to allow the user to select which scanlator to use if a choice is available.
 # TODO: Add a way to detect if there are more than 500 chapters and do another request with an offset if it does
+# TODO: Cache requests if they have been made within the last 10 minutes or so. This will reduce load on Mangadex and speed up the process
 
 # FIXME: We don't know if there are duplicate chapters! If so, we need to determine which to use. Likely going to be done based on scanlation group
 # TODO: Warn if some chapters are not in volumes
