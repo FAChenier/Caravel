@@ -202,7 +202,7 @@ def title_search_nav() -> dict:
             print('\n\nInvalid input, please try again\n')
             user_search = "none!"
     # We should now have a valid title to lookup
-    title_lookup = mangadex_titles_request(user_search)
+    title_lookup = mangadex_titles_request(user_search) # ! This is where the API request is made
     # TODO in the future, if this returns an empty list, ask the title again
     # Return the results
     return title_lookup
@@ -227,7 +227,7 @@ def series_select_nav(title_lookup: dict) -> dict:
             # Nav handler not implemented yet so we do our best:
             if user_select['response'] == 'back':
                 print('\n\nGoing back...\n\n')
-                title_lookup = title_search_nav()
+                title_lookup = title_search_nav() # ! An API request is made in this function
                 user_select = 'none'
             elif user_select['response'] == 'exit':
                 print('\n\nExiting...\n\n')

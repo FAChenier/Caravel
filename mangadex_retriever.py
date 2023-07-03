@@ -42,34 +42,34 @@ from nav import *
 from push_to_calibre import push_to_calibre as calibre_push
 
 # ====================================================================================================
-# Start by getting the title to lookup
-
-# user_search = title_search()
-# title_lookup = mangadex_titles_request(user_search['response']) # ! This function does an API request!
-title_lookup = title_search_nav()
+# ? Start by getting the title to lookup
+title_lookup = title_search_nav() # ! This function does an API request!
 
 # ====================================================================================================
-# * Now do the search and show the results, then ask the user which to use
-user_select = series_select_nav(title_lookup)
+# ? Now do the search and show the results, then ask the user which to use
+user_select = series_select_nav(title_lookup) # ! This function MAY make an API request!
 
-
+# ====================================================================================================
+# * All of these below are for compatibility, they should be replaced later on
 us = user_select # Shortcut for later
 id_select = int(us['response']) - 1
-# * All of these below are for compatibility, they should be replaced later on
+
 title_list = title_lookup["titles_results"][id_select]
 id_list = title_lookup["ids_results"][id_select]
 md_link_list = title_lookup["mangadex_links"][id_select]
 al_link_list = title_lookup["anilist_links"][id_select]
 authors_list = title_lookup["contributors"][id_select]
+
 # ====================================================================================================
 # We now have a title to work with. We need to get the ID of the manga on Mangadex to continue
 print('\n\n\n')
 # TODO make this its own navigation function that supports going back and exiting
-chapter_request = chapter_request_and_files(us['mdid'], us['clean_title'])
+chapter_request = chapter_request_and_files(us['mdid'], us['clean_title']) # ! This function does an API request!
 cr = chapter_request # Shortcut for later
 # TODO Find a way to exclude official publishers from the list as we cant download from them, but often there is a scanlator version available
 # TODO: An alternative to above is to allow the user to select which scanlator to use if a choice is available.
 # TODO: Cache requests if they have been made within the last 10 minutes or so. This will reduce load on Mangadex and speed up the process
+
 chapter_id_list = cr['chapter_id_list']
 
 build_folders(cr["pseudo_file_structure"])
@@ -79,6 +79,8 @@ vs = volume_selection # Shortcut for later
 volume_list = vs['volumes_to_download']
 
 cover_request_and_download(us['mdid'], cr['pseudo_file_structure'], vs['volumes_to_download'])
+
+# ====================================================================================================
 
 # Now we have a list of volumes to download, we can go through the pseudo_file_structure and download the chapters based on Mangadex IDs
 vols = 0
