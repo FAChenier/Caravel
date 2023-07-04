@@ -24,14 +24,16 @@ def contributor_request(contributor_ids: list) -> dict:
     t1 = time.perf_counter()
     try:
         for author_id in contributor_ids:
+            # ! API Request is being made here, this is a marker
             contributor_request = requests.get(
                             f"{baseUrl}/author/{author_id}"
                             )
+
             name = contributor_request.json()['data']['attributes']['name']
             name_list.append(name) if name not in name_list else None # * Avoid duplication
         t2 = time.perf_counter()
         duration = round(t2 - t1, 2) # Useful later for understanding a rate limiting issue
-        # ! Checking time should be done whenever an API request is inside a fast loop
+        # ? Checking time should be done whenever an API request is inside a fast loop
     except:
         # * Likely that authors don't exist or we are rate limited, just skip
         name_list = [""]
@@ -54,6 +56,7 @@ def mangadex_titles_request(title_lookup: str) -> dict:
         us to use. This will also be cached for a certain amount of time.
         # * Caching is not implemented yet.
     """
+    # ! API Request is being made here, this is a marker
     title_request = requests.get(
         f"{baseUrl}/manga",
         params={"title": title_lookup}
@@ -93,7 +96,7 @@ def mangadex_titles_request(title_lookup: str) -> dict:
         author_id = relationships_list[0]['id']
         artist_id = relationships_list[1]['id']
         authors_list = [author_id] if author_id == artist_id else [author_id, artist_id]
-        contributors.append(contributor_request(authors_list)['names'])
+        contributors.append(authors_list)
 
     return {
         "titles_results": title_results,
@@ -121,21 +124,25 @@ def chapter_request_and_files(mdid: str, series_title: str) -> dict:
     Returns:
         dict: See "return" for the format.
     """
+    # ! API Request is being made here, this is a marker
     chapter_request = requests.get(
     f"{baseUrl}/manga/{mdid}/feed",
     params={"translatedLanguage[]": "en", "order[chapter]": "asc", "limit": 500}
     )
+
     #pprint(chapter_request.json())
     # TODO Add a way to offset the request if there are more than 500 chapters
-    # ! TODO Handle error responses
+    # TODO Handle error responses
 
     chapter_id_list = []
     volume_list = []
     # * If we want any other stat, we can add a list that is filled gradually here too
 
     for chapter in chapter_request.json()["data"]:
-        chapter_id_list.append(chapter["id"])
-        volume_list.append(chapter["attributes"]["volume"])
+        # ? This should exclude "official publisher" chapters
+        if chapter["attributes"]["externalUrl"] == None:
+            chapter_id_list.append(chapter["id"])
+            volume_list.append(chapter["attributes"]["volume"])
 
 # ==============================================================================
 
@@ -145,23 +152,24 @@ def chapter_request_and_files(mdid: str, series_title: str) -> dict:
     }}
 
     for chapter in chapter_request.json()["data"]:
-        chapter_num = chapter["attributes"]["chapter"] # * Will return None if empty, no point try-excepting
-        volume_num = chapter["attributes"]["volume"]
-        volume_str = str(volume_num).zfill(4) if volume_num is not None else "stranded"
+        if chapter["attributes"]["externalUrl"] == None:
+            chapter_num = chapter["attributes"]["chapter"] # * Will return None if empty, no point try-excepting
+            volume_num = chapter["attributes"]["volume"]
+            volume_str = str(volume_num).zfill(4) if volume_num is not None else "stranded"
 
-        # If it's stranded, add it to the stranded list. Else, add to its volume dict:
-        if volume_str == "stranded":
-            pseudo_file_structure[series_title]['stranded'][chapter_num] = chapter["id"]
-        else:
-            if volume_str not in pseudo_file_structure[series_title]: # Can't create a new dict with an assignment to it
-                pseudo_file_structure[series_title][volume_str] = {}
-            pseudo_file_structure[series_title][volume_str][chapter_num] = chapter["id"]
+            # If it's stranded, add it to the stranded list. Else, add to its volume dict:
+            if volume_str == "stranded":
+                pseudo_file_structure[series_title]['stranded'][chapter_num] = chapter["id"]
+            else:
+                if volume_str not in pseudo_file_structure[series_title]: # Can't create a new dict with an assignment to it
+                    pseudo_file_structure[series_title][volume_str] = {}
+                pseudo_file_structure[series_title][volume_str][chapter_num] = chapter["id"]
     # By the end of this loop, the pseudo file structure should be complete
 
     # Check if everything ended up in stranded. If so, use chapter ranges instead:
     if len(pseudo_file_structure[series_title]['stranded']) == len(chapter_id_list):
         # Default to chapter ranges of 10, may be changed in settings later.
-        # ! The setting is not implemented yet
+        # * The setting is not implemented yet
         # If there's not enoug chapters to fill the last range, put in stranded. Can apply to the first volume:
         pseudo_file_structure = {series_title: {
             'stranded': {},
@@ -174,7 +182,7 @@ def chapter_request_and_files(mdid: str, series_title: str) -> dict:
                     pseudo_file_structure[series_title][volume_str][chapter_id_list[j]] = chapter_id_list[j]
                 except:
                     pseudo_file_structure[series_title]['stranded'][chapter_id_list[j]] = chapter_id_list[j]
-        # ! The above is completely untested. It's just a concept for now.
+        # * The above is completely untested. It's just a concept for now.
     # Rebuild the volume list
     volume_list = list(pseudo_file_structure[series_title].keys())
 
@@ -238,7 +246,7 @@ def select_volumes_to_download(pseudo_file_structure: dict) -> dict:
                 volumes_to_download.append(i)
         else:
             # It's a single volume, so add it to the list:
-            volumes_to_download.append(int(volume))
+            volumes_to_download.append(int(volume)) # ! This has no error handling!
     return {
         "volumes_to_download": volumes_to_download
     }
@@ -252,34 +260,40 @@ def cover_request_and_download(mdid, pseudo_file_structure, volumes_to_download)
         pseudo_file_structure (dict): A pseudo file structure built by a previous function.
         volumes_to_download (list): A list of volumes to download.
     """
+    # ! API Request is being made here, this is a marker
     cover_request = requests.get(
             f"{baseUrl}/cover",
             params={"manga[]": [mdid], "limit": 100} # Cant order by volume :(
             )
 
     # Loop through each volume to download, check if the cover already exists, and if not, download it:
-    for volume in volumes_to_download:
-        cover_path = os.path.join(os.getcwd(), "books", list(pseudo_file_structure.keys())[0], str(volume).zfill(4) + ".jpg")
-        if not os.path.exists(cover_path):
-            # Download the cover, check if there's a cover in cover_request for this volume:
-            cover_id = None
-            for cover in cover_request.json()['data']:
-                if int(cover['attributes']['volume']) == volume:
-                    # Found the cover
-                    cover_id = cover['id']
-                    break
-            if cover_id is not None:
-                cover_image_request = requests.get(
-                    f"{baseUrl}/cover/{cover_id}"
-                    )
-                # Now we have the cover, download it and save it
-                cover_filename = cover_image_request.json()['data']['attributes']['fileName']
-                cover_url = 'https://uploads.mangadex.org/covers/' + mdid + '/' + cover_filename + '.512.jpg'
-                cover_file_request = requests.get(cover_url)
-                with open(cover_path, 'wb') as f:
-                    f.write(cover_file_request.content)
-            # Check if no covers were found, if so, download the default cover:
-            # ! This is not implemented yet
-        else:
-            # Cover already exists, do nothing:
-            pass
+    try:
+        for volume in volumes_to_download:
+            cover_path = os.path.join(os.getcwd(), "books", list(pseudo_file_structure.keys())[0], str(volume).zfill(4) + ".jpg")
+            if not os.path.exists(cover_path):
+                # Download the cover, check if there's a cover in cover_request for this volume:
+                cover_id = None
+                for cover in cover_request.json()['data']:
+                    if int(cover['attributes']['volume']) == volume:
+                        # Found the cover
+                        cover_id = cover['id']
+                        break
+                if cover_id is not None:
+                    cover_image_request = requests.get(
+                        f"{baseUrl}/cover/{cover_id}"
+                        )
+                    # Now we have the cover, download it and save it
+                    cover_filename = cover_image_request.json()['data']['attributes']['fileName']
+                    cover_url = 'https://uploads.mangadex.org/covers/' + mdid + '/' + cover_filename + '.512.jpg'
+                    cover_file_request = requests.get(cover_url)
+                    with open(cover_path, 'wb') as f:
+                        f.write(cover_file_request.content)
+                # Check if no covers were found, if so, download the default cover:
+                # ! This is not implemented yet
+            else:
+                # Cover already exists, do nothing:
+                pass
+    except:
+        print("Failed cover request, response gotten from the server:")
+        pprint(cover_request.json())
+        pass

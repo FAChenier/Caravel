@@ -144,20 +144,6 @@ def display_results(results: dict) -> dict:
         title = ""
         contributors = ""
         clean_title = ""
-    # else:
-    #     try:
-    #         response_type = "title_selection"
-    #         mdid = results['ids_results'][int(user_input)-1]
-    #         title = results['titles_results'][int(user_input)-1]
-    #         contributors = results['contributors'][int(user_input)-1][0]
-    #         clean_title = title.replace(":", "").replace("/", "").replace("\\", "").replace("*", "").replace("?", "").replace("\"", "").replace("<", "").replace(">", "").replace("|", "")
-    #     except:
-    #         # Invalid input
-    #         response_type = "invalid_input"
-    #         mdid = ""
-    #         title = ""
-    #         contributors = ""
-    #         clean_title = ""
 
     return {
         "response_type": response_type,
@@ -244,4 +230,7 @@ def series_select_nav(title_lookup: dict) -> dict:
             print('\n\nInvalid input, please try again\n')
             user_select = 'none'
     # We should now have a valid selection
+    contributors = contributor_request(title_lookup['contributors'][user_select["response"]-1])
+    # Replace the contributor ID by the contributor names
+    user_select["contributors"] = contributors
     return user_select

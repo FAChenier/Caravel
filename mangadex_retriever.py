@@ -58,7 +58,7 @@ title_list = title_lookup["titles_results"][id_select]
 id_list = title_lookup["ids_results"][id_select]
 md_link_list = title_lookup["mangadex_links"][id_select]
 al_link_list = title_lookup["anilist_links"][id_select]
-authors_list = title_lookup["contributors"][id_select]
+authors_list = us["contributors"]["names"]
 
 # ====================================================================================================
 # We now have a title to work with. We need to get the ID of the manga on Mangadex to continue
