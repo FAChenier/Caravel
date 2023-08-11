@@ -79,9 +79,12 @@ def mangadex_titles_request(title_lookup: str) -> dict:
     mangadex_links = []
     # Loop through the results and append them to the lists as needed:
     for result in title_request.json()["data"]:
-        title_results.append(result["attributes"]["title"]["en"])
+        try: # Sometimes the titles are too well classified lmao
+            tit = title_results.append(result["attributes"]["title"]["en"])
+        except:
+            tit = title_results.append(result["attributes"]["title"]["ja-ro"])
         ids_results.append(result["id"])
-        real_titles.append(result["attributes"]["title"]["en"]) # ? Redundant?
+        real_titles.append(tit)
         cover_ids.append(result["relationships"][2]["id"]) # Experiment, seems that relationships are always ordered...
         mangadex_links.append("https://mangadex.org/title/" + result["id"])
 
