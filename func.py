@@ -264,39 +264,47 @@ def cover_request_and_download(mdid, pseudo_file_structure, volumes_to_download)
         volumes_to_download (list): A list of volumes to download.
     """
     # ! API Request is being made here, this is a marker
+    # Make the cover request
     cover_request = requests.get(
-            f"{baseUrl}/cover",
-            params={"manga[]": [mdid], "limit": 100} # Cant order by volume :(
-            )
+        f"{baseUrl}/cover",
+        params={"manga[]": [mdid], "limit": 100}
+    )
 
-    # Loop through each volume to download, check if the cover already exists, and if not, download it:
-    try:
-        for volume in volumes_to_download:
-            cover_path = os.path.join(os.getcwd(), "books", list(pseudo_file_structure.keys())[0], str(volume).zfill(4) + ".jpg")
-            if not os.path.exists(cover_path):
-                # Download the cover, check if there's a cover in cover_request for this volume:
-                cover_id = None
-                for cover in cover_request.json()['data']:
-                    if int(cover['attributes']['volume']) == volume:
-                        # Found the cover
-                        cover_id = cover['id']
-                        break
-                if cover_id is not None:
-                    cover_image_request = requests.get(
-                        f"{baseUrl}/cover/{cover_id}"
-                        )
-                    # Now we have the cover, download it and save it
-                    cover_filename = cover_image_request.json()['data']['attributes']['fileName']
-                    cover_url = 'https://uploads.mangadex.org/covers/' + mdid + '/' + cover_filename + '.512.jpg'
-                    cover_file_request = requests.get(cover_url)
-                    with open(cover_path, 'wb') as f:
-                        f.write(cover_file_request.content)
-                # Check if no covers were found, if so, download the default cover:
-                # ! This is not implemented yet
-            else:
-                # Cover already exists, do nothing:
-                pass
-    except:
-        print("Failed cover request, response gotten from the server:")
-        pprint(cover_request.json())
-        pass
+    # Uncomment the following block to see the outcomes of the API request
+    """
+    print("Cover Request Response:")
+    pprint(cover_request.json())
+    """
+
+    # Loop through each volume to download
+    for volume in volumes_to_download:
+        cover_path = os.path.join(os.getcwd(), "books", list(pseudo_file_structure.keys())[0], str(volume).zfill(4) + ".jpg")
+        if not os.path.exists(cover_path):
+            # Find the cover for this volume
+            cover_id = None
+            for cover in cover_request.json()['data']:
+                if str(cover['attributes']['volume']) == str(volume):
+                    cover_id = cover['id']
+                    break
+
+            # If no cover found, download the default cover
+            if cover_id is None:
+                cover_id = mdid
+
+            # Get the cover image URL
+            cover_image_request = requests.get(
+                f"{baseUrl}/cover/{cover_id}"
+            )
+            cover_filename = cover_image_request.json()['data']['attributes']['fileName']
+            cover_url = f"https://uploads.mangadex.org/covers/{mdid}/{cover_filename}.512.jpg"
+
+            # Download and save the cover image
+            cover_file_request = requests.get(cover_url)
+            with open(cover_path, 'wb') as f:
+                f.write(cover_file_request.content)
+            print(f"Downloaded cover for volume {volume}")
+        else:
+            # Cover already exists, skip
+            print(f"Cover for volume {volume} already exists, skipping")
+    print("Cover download completed")
+

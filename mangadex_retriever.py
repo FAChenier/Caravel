@@ -40,6 +40,7 @@ from kcc_conversion import img_dir_to_epub as kcc_convert
 from misc_utils import download_chapter_image, link, printProgressBar
 from nav import *
 from push_to_calibre import push_to_calibre as calibre_push
+import time
 
 # ====================================================================================================
 # ? Start by getting the title to lookup
@@ -112,14 +113,21 @@ for volume in volume_list:
         # Now we have a chapter folde, we need to get the chapter ID from pseudo_file_structure
         chapter_id = cr['pseudo_file_structure'][us['clean_title']][volume][chapter]
 
-        # Now we can download the images. First, request Mangadex for image data
-        chapter_request = requests.get(
-            f"{baseUrl}/at-home/server/{chapter_id}"
-            )
+        retry_count = 0
+        while retry_count < 3:
+            chapter_request = requests.get(f"{baseUrl}/at-home/server/{chapter_id}")
+            response = chapter_request.json()
+
+            if 'errors' in response and response['result'] == 'error' and response['errors'][0]['detail'] == 'Rate Limit Exceeded':
+                retry_count += 1
+                print('Rate limit exceeded, retrying in 100ms')
+                time.sleep(0.1)  # Retry after 100ms
+            else:
+                break
 
         # Now we have the image data, we can get the images
         im = 0
-        #pprint(chapter_request.json())
+        # pprint(chapter_request.json())
         total_images = len(chapter_request.json()['chapter']['data'])
         chapter_baseUrl = chapter_request.json()['baseUrl']
         chapter_hash = chapter_request.json()['chapter']['hash']
