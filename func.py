@@ -116,7 +116,112 @@ def mangadex_titles_request(title_lookup: str) -> dict:
     }
 
 
+def chapter_request(mdid: str) -> dict:
+    """
+    Execute a mangadex API request for all the chapters in a series.
+    Returns the JSON response from the API request.
+
+    Args:
+        mdid (str): Mangadex ID of the manga to lookup.
+
+    Returns:
+        dict: The JSON response from the API request.
+    """
+    chapter_request = requests.get(
+        f"{baseUrl}/manga/{mdid}/feed",
+        params={"translatedLanguage[]": "en", "order[chapter]": "asc", "limit": 500}
+    )
+    return chapter_request.json()
+
+def extract_chapter_info(chapter_request_json: dict) -> tuple:
+    """
+    Extract chapter IDs and volume numbers from the API response.
+    Returns a tuple containing the chapter ID list and volume list.
+
+    Args:
+        chapter_request_json (dict): The JSON response from the chapter request.
+
+    Returns:
+        tuple: A tuple containing the chapter ID list and volume list.
+    """
+    chapter_id_list = []
+    volume_list = []
+    for chapter in chapter_request_json["data"]:
+        if chapter["attributes"]["externalUrl"] is None:
+            chapter_id_list.append(chapter["id"])
+            volume_list.append(chapter["attributes"]["volume"])
+    return chapter_id_list, volume_list
+
+def build_pseudo_file_structure(chapter_request_json: dict, series_title: str, chapter_id_list: list) -> dict:
+    """
+    Build the pseudo file structure dictionary based on the chapter request JSON.
+    Returns the pseudo file structure dictionary.
+
+    Args:
+        chapter_request_json (dict): The JSON response from the chapter request.
+        series_title (str): The title of the series.
+        chapter_id_list (list): The list of chapter IDs.
+
+    Returns:
+        dict: The pseudo file structure dictionary.
+    """
+    pseudo_file_structure = {series_title: {'stranded': {}}}
+    for chapter in chapter_request_json["data"]:
+        if chapter["attributes"]["externalUrl"] is None:
+            chapter_num = chapter["attributes"]["chapter"]
+            volume_num = chapter["attributes"]["volume"]
+            volume_str = str(volume_num).zfill(4) if volume_num is not None else "stranded"
+
+            if volume_str == "stranded":
+                pseudo_file_structure[series_title]['stranded'][chapter_num] = chapter["id"]
+            else:
+                if volume_str not in pseudo_file_structure[series_title]:
+                    pseudo_file_structure[series_title][volume_str] = {}
+                pseudo_file_structure[series_title][volume_str][chapter_num] = chapter["id"]
+
+    if len(pseudo_file_structure[series_title]['stranded']) == len(chapter_id_list):
+        pseudo_file_structure = {series_title: {'stranded': {}}}
+        for i in range(0, len(chapter_id_list), 10):
+            volume_str = str(i // 10).zfill(4)
+            pseudo_file_structure[series_title][volume_str] = {}
+            for j in range(i, i+10):
+                try:
+                    pseudo_file_structure[series_title][volume_str][chapter_id_list[j]] = chapter_id_list[j]
+                except:
+                    pseudo_file_structure[series_title]['stranded'][chapter_id_list[j]] = chapter_id_list[j]
+
+    return pseudo_file_structure
+
 def chapter_request_and_files(mdid: str, series_title: str) -> dict:
+    """
+    Execute a mangadex API request for all the chapters in a series.
+    Returns a dictionary with the results and other information.
+
+    Args:
+        mdid (str): Mangadex ID of the manga to lookup.
+        series_title (str): The title of the series.
+
+    Returns:
+        dict: A dictionary with the following keys:
+            - "chapter_id_list": A list of chapter IDs.
+            - "volumes": A list of volume numbers.
+            - "chapter_number": The total number of chapters.
+            - "pseudo_file_structure": A nested dictionary representing the file structure.
+            - "results": The JSON response from the API request.
+    """
+    chapter_request_json = chapter_request(mdid)
+    chapter_id_list, volume_list = extract_chapter_info(chapter_request_json)
+    pseudo_file_structure = build_pseudo_file_structure(chapter_request_json, series_title, chapter_id_list)
+
+    return {
+        "chapter_id_list": chapter_id_list,
+        "volumes": volume_list,
+        "chapter_number": len(chapter_id_list),
+        "pseudo_file_structure": pseudo_file_structure,
+        "results": chapter_request_json
+    }
+
+def chapter_request_and_files_temp(mdid: str, series_title: str) -> dict:
     """Execute a mangadex API request for all the chapters in a
     series. Returns a dictionary with the results and other information.
 

@@ -67,7 +67,6 @@ print('\n\n\n')
 # TODO make this its own navigation function that supports going back and exiting
 chapter_request = chapter_request_and_files(us['mdid'], us['clean_title']) # ! This function does an API request!
 cr = chapter_request # Shortcut for later
-# TODO Find a way to exclude official publishers from the list as we cant download from them, but often there is a scanlator version available
 # TODO: An alternative to above is to allow the user to select which scanlator to use if a choice is available.
 # TODO: Cache requests if they have been made within the last 10 minutes or so. This will reduce load on Mangadex and speed up the process
 
